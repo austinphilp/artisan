@@ -39,9 +39,9 @@ except ImportError:
     from PyQt5.QtWidgets import QApplication # type: ignore # @UnusedImport @Reimport  @UnresolvedImport
 
 try:
-    from PyQt6.QtCore import QTimer
+    from PyQt6.QtCore import QTimer, Qt
 except ImportError:
-    from PyQt5.QtCore import QTimer  # type: ignore
+    from PyQt5.QtCore import QTimer, Qt  # type: ignore
 
 from artisanlib.util import convertWeight, weight_units
 from artisanlib import __version__
@@ -55,7 +55,7 @@ class wsport:
                     'reconnect_interval', '_ping_interval', '_ping_timeout', 'id_node', 'machine_node',
                     'command_node', 'data_node', 'pushMessage_node', 'request_data_command', 'charge_message', 'drop_message', 'addEvent_message', 'event_node',
                     'DRY_node', 'FCs_node', 'FCe_node', 'SCs_node', 'SCe_node', 'STARTonCHARGE', 'OFFonDROP', 'open_event', 'pending_events',
-                    'ws', 'wst' ]
+                    'ws', 'wst', 'ui_signals_connected' ]
 
     def __init__(self, aw:'ApplicationWindow') -> None:
         self.aw = aw
@@ -64,6 +64,7 @@ class wsport:
         self._loop:        Optional[asyncio.AbstractEventLoop] = None # the asyncio loop
         self._thread:      Optional[Thread]                    = None # the thread running the asyncio loop
         self._write_queue: Optional[asyncio.Queue[str]]        = None # the write queue
+        self.ui_signals_connected: bool = False
 
         # connects to "ws://<host>:<port>/<path>"
         self.default_host:Final[str] = '127.0.0.1'
@@ -131,6 +132,28 @@ class wsport:
             return [w.lower() for w in weight_units].index(u)
         except Exception:
             return None
+
+    def _ensure_ui_signal_connections(self) -> None:
+        try:
+            if not getattr(self, 'ui_signals_connected', False):
+                try:
+                    # Prefer explicit queued connection
+                    self.aw.setGreenWeightSignal.connect(self.aw._onSetGreenWeight, type=Qt.ConnectionType.QueuedConnection)  # type: ignore
+                    self.aw.setRoastedWeightSignal.connect(self.aw._onSetRoastedWeight, type=Qt.ConnectionType.QueuedConnection)  # type: ignore
+                    self.aw.setRoastBeansSignal.connect(self.aw._onSetRoastBeans, type=Qt.ConnectionType.QueuedConnection)  # type: ignore
+                    self.aw.setRoastBatchSignal.connect(self.aw._onSetRoastBatch, type=Qt.ConnectionType.QueuedConnection)  # type: ignore
+                except Exception:
+                    # Fallback without explicit type
+                    self.aw.setGreenWeightSignal.connect(self.aw._onSetGreenWeight)
+                    self.aw.setRoastedWeightSignal.connect(self.aw._onSetRoastedWeight)
+                    self.aw.setRoastBeansSignal.connect(self.aw._onSetRoastBeans)
+                    self.aw.setRoastBatchSignal.connect(self.aw._onSetRoastBatch)
+                self.ui_signals_connected = True
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport UI update signals connected')
+        except Exception as e:
+            if self.aw.seriallogflag:
+                self.aw.addserial(f'wsport UI signal connect exception: {e!r}')
 
     # request event handling
 
@@ -289,6 +312,7 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setGreenWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_green)
+                self._ensure_ui_signal_connections()
                 # Also emit queued UI-thread signal to ensure execution on GUI thread
                 try:
                     v_raw = data.get('value')
@@ -332,6 +356,7 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastedWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_roasted)
+                self._ensure_ui_signal_connections()
                 # Also emit queued UI-thread signal to ensure execution on GUI thread
                 try:
                     v_raw = data.get('value')
@@ -367,6 +392,7 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastBeans exception: {e!r}')
                 QTimer.singleShot(0, _apply_beans)
+                self._ensure_ui_signal_connections()
                 # Also emit queued UI-thread signal
                 try:
                     beans = data.get('beans')
@@ -415,6 +441,7 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastBatch exception: {e!r}')
                 QTimer.singleShot(0, _apply_batch)
+                self._ensure_ui_signal_connections()
                 # Also emit queued UI-thread signal
                 try:
                     bp = data.get('batch_prefix')

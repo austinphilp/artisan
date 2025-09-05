@@ -1573,6 +1573,107 @@ class ApplicationWindow(QMainWindow):  # pyright: ignore [reportGeneralTypeIssue
     setRoastBeansSignal = pyqtSignal(str)
     setRoastBatchSignal = pyqtSignal(object, object, object)
 
+    @pyqtSlot(float, object)
+    def _onSetGreenWeight(self, value: float, unit_obj: object) -> None:
+        try:
+            u: Optional[str] = unit_obj if isinstance(unit_obj, str) else None
+            v = float(value)
+            in_unit_idx: Optional[int] = None
+            if u is not None:
+                try:
+                    in_unit_idx = [w.lower() for w in weight_units].index(u.strip().lower())
+                except Exception:
+                    in_unit_idx = None
+            current_unit_idx = [w.lower() for w in weight_units].index(self.qmc.weight[2].lower())
+            if in_unit_idx is not None:
+                v = convertWeight(v, in_unit_idx, current_unit_idx)
+            self.qmc.weight = (v, self.qmc.weight[1], self.qmc.weight[2])
+            if self.seriallogflag:
+                self.addserial(f'wsport setGreenWeight applied (ui): {v}{self.qmc.weight[2].lower()}')
+            dlg = getattr(self, 'editgraphdialog', None)
+            if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightinedit'):
+                try:
+                    dlg.updateWeightEdits(dlg.weightinedit, v)
+                except Exception:
+                    pass
+        except Exception as e:  # pylint: disable=broad-except
+            if self.seriallogflag:
+                self.addserial(f'wsport setGreenWeight exception (ui): {e!r}')
+
+    @pyqtSlot(float, object)
+    def _onSetRoastedWeight(self, value: float, unit_obj: object) -> None:
+        try:
+            u: Optional[str] = unit_obj if isinstance(unit_obj, str) else None
+            v = float(value)
+            in_unit_idx: Optional[int] = None
+            if u is not None:
+                try:
+                    in_unit_idx = [w.lower() for w in weight_units].index(u.strip().lower())
+                except Exception:
+                    in_unit_idx = None
+            current_unit_idx = [w.lower() for w in weight_units].index(self.qmc.weight[2].lower())
+            if in_unit_idx is not None:
+                v = convertWeight(v, in_unit_idx, current_unit_idx)
+            self.qmc.weight = (self.qmc.weight[0], v, self.qmc.weight[2])
+            if self.seriallogflag:
+                self.addserial(f'wsport setRoastedWeight applied (ui): {v}{self.qmc.weight[2].lower()}')
+            dlg = getattr(self, 'editgraphdialog', None)
+            if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightoutedit'):
+                try:
+                    dlg.updateWeightEdits(dlg.weightoutedit, v)
+                except Exception:
+                    pass
+        except Exception as e:  # pylint: disable=broad-except
+            if self.seriallogflag:
+                self.addserial(f'wsport setRoastedWeight exception (ui): {e!r}')
+
+    @pyqtSlot(str)
+    def _onSetRoastBeans(self, beans: str) -> None:
+        try:
+            if isinstance(beans, str):
+                self.qmc.beans = beans
+                dlg = getattr(self, 'editgraphdialog', None)
+                if dlg and dlg is not False and hasattr(dlg, 'beansedit') and hasattr(dlg.beansedit, 'setNewPlainText'):
+                    try:
+                        dlg.beansedit.setNewPlainText(beans)
+                    except Exception:
+                        pass
+        except Exception as e:  # pylint: disable=broad-except
+            if self.seriallogflag:
+                self.addserial(f'wsport setRoastBeans exception (ui): {e!r}')
+
+    @pyqtSlot(object, object, object)
+    def _onSetRoastBatch(self, batch_prefix_obj: object, batch_number_obj: object, batch_all_obj: object) -> None:
+        try:
+            bp: Optional[str] = batch_prefix_obj if isinstance(batch_prefix_obj, str) else None
+            bn: Optional[int] = None
+            if isinstance(batch_number_obj, (int, float, str)):
+                try:
+                    bn = int(batch_number_obj)
+                except Exception:
+                    bn = None
+            if (bn is None or bp is None) and isinstance(batch_all_obj, str):
+                m = re.match(r'^([^0-9]*)([0-9]+)$', batch_all_obj.strip())
+                if m:
+                    bp = m.group(1)
+                    bn = int(m.group(2))
+            if isinstance(bp, str):
+                self.qmc.roastbatchprefix = bp
+            if isinstance(bn, int):
+                self.qmc.roastbatchnr = bn
+            dlg = getattr(self, 'editgraphdialog', None)
+            if dlg and dlg is not False:
+                try:
+                    roastpos = (f' ({self.qmc.roastbatchpos})' if self.qmc.roastbatchnr != 0 else '')
+                    batch_txt = ('' if self.qmc.roastbatchnr == 0 else f"{self.qmc.roastbatchprefix}{self.qmc.roastbatchnr}{roastpos}")
+                    if hasattr(dlg, 'batchedit') and hasattr(dlg.batchedit, 'setText'):
+                        dlg.batchedit.setText(batch_txt)
+                except Exception:
+                    pass
+        except Exception as e:  # pylint: disable=broad-except
+            if self.seriallogflag:
+                self.addserial(f'wsport setRoastBatch exception (ui): {e!r}')
+
     __slots__ = [ 'locale_str', 'app', 'superusermode', 'sample_loop_running', 'time_stopped', 'plus_account', 'plus_account_id', 'plus_remember_credentials', 'plus_email', 'plus_language', 'plus_subscription', 'percent_decimals',
         'plus_paidUntil', 'plus_rlimit', 'plus_used', 'plus_readonly', 'plus_user_id', 'appearance', 'mpl_fontproperties', 'full_screen_mode_active', 'processingKeyEvent', 'quickEventShortCut',
         'eventaction_running_threads', 'curFile', 'MaxRecentFiles', 'recentFileActs', 'recentSettingActs',
