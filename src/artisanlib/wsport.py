@@ -176,6 +176,13 @@ class wsport:
             pushMessage = j[self.pushMessage_node]
             if self.aw.seriallogflag:
                 self.aw.addserial(f'wsport pushMessage {pushMessage} received')
+            # extra debug about payload shape
+            if self.aw.seriallogflag:
+                try:
+                    dk = (list(j[self.data_node].keys()) if (self.data_node in j and isinstance(j[self.data_node], dict)) else [])
+                    self.aw.addserial(f'wsport pushMessage payload: keys={list(j.keys())}, data_keys={dk}')
+                except Exception:
+                    pass
             if self.charge_message != '' and pushMessage == self.charge_message:
                 if self.aw.seriallogflag:
                     self.aw.addserial('wsport CHARGE message received')
@@ -254,12 +261,18 @@ class wsport:
                 data = j[self.data_node]
                 def _apply_green() -> None:
                     try:
-                        v = float(data.get('value'))
-                        in_unit_idx = self._weight_unit_index(data.get('unit'))
+                        v_raw = data.get('value')
+                        u_raw = data.get('unit')
+                        v = float(v_raw)
+                        in_unit_idx = self._weight_unit_index(u_raw)
                         current_unit_idx = [w.lower() for w in weight_units].index(self.aw.qmc.weight[2].lower())
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setGreenWeight raw: value={v_raw} unit={u_raw} unitIdx={in_unit_idx}')
                         if in_unit_idx is not None:
                             v = convertWeight(v, in_unit_idx, current_unit_idx)
                         self.aw.qmc.weight = (v, self.aw.qmc.weight[1], self.aw.qmc.weight[2])
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setGreenWeight applied: {v}{self.aw.qmc.weight[2].lower()}')
                         # Update Roast Properties dialog if open
                         dlg = getattr(self.aw, 'editgraphdialog', None)
                         if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightinedit'):
@@ -274,12 +287,18 @@ class wsport:
                 data = j[self.data_node]
                 def _apply_roasted() -> None:
                     try:
-                        v = float(data.get('value'))
-                        in_unit_idx = self._weight_unit_index(data.get('unit'))
+                        v_raw = data.get('value')
+                        u_raw = data.get('unit')
+                        v = float(v_raw)
+                        in_unit_idx = self._weight_unit_index(u_raw)
                         current_unit_idx = [w.lower() for w in weight_units].index(self.aw.qmc.weight[2].lower())
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastedWeight raw: value={v_raw} unit={u_raw} unitIdx={in_unit_idx}')
                         if in_unit_idx is not None:
                             v = convertWeight(v, in_unit_idx, current_unit_idx)
                         self.aw.qmc.weight = (self.aw.qmc.weight[0], v, self.aw.qmc.weight[2])
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastedWeight applied: {v}{self.aw.qmc.weight[2].lower()}')
                         # Update Roast Properties dialog if open
                         dlg = getattr(self.aw, 'editgraphdialog', None)
                         if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightoutedit'):
