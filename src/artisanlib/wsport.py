@@ -289,6 +289,17 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setGreenWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_green)
+                # Also emit queued UI-thread signal to ensure execution on GUI thread
+                try:
+                    v_raw = data.get('value')
+                    u_raw = data.get('unit')
+                    if v_raw is not None:
+                        self.aw.setGreenWeightSignal.emit(float(v_raw), u_raw)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setGreenWeight emitted UI-thread signal')
+                except Exception as e:
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport setGreenWeight emit exception: {e!r}')
             elif pushMessage == 'setRoastedWeight' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
@@ -321,6 +332,17 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastedWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_roasted)
+                # Also emit queued UI-thread signal to ensure execution on GUI thread
+                try:
+                    v_raw = data.get('value')
+                    u_raw = data.get('unit')
+                    if v_raw is not None:
+                        self.aw.setRoastedWeightSignal.emit(float(v_raw), u_raw)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastedWeight emitted UI-thread signal')
+                except Exception as e:
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport setRoastedWeight emit exception: {e!r}')
             elif pushMessage == 'setRoastBeans' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
@@ -345,6 +367,16 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastBeans exception: {e!r}')
                 QTimer.singleShot(0, _apply_beans)
+                # Also emit queued UI-thread signal
+                try:
+                    beans = data.get('beans')
+                    if isinstance(beans, str):
+                        self.aw.setRoastBeansSignal.emit(beans)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastBeans emitted UI-thread signal')
+                except Exception as e:
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport setRoastBeans emit exception: {e!r}')
             elif pushMessage == 'setRoastBatch' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
@@ -383,6 +415,17 @@ class wsport:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport setRoastBatch exception: {e!r}')
                 QTimer.singleShot(0, _apply_batch)
+                # Also emit queued UI-thread signal
+                try:
+                    bp = data.get('batch_prefix')
+                    bn = data.get('batch_number')
+                    b_all = data.get('batch')
+                    self.aw.setRoastBatchSignal.emit(bp, bn, b_all)
+                    if self.aw.seriallogflag:
+                        self.aw.addserial('wsport setRoastBatch emitted UI-thread signal')
+                except Exception as e:
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport setRoastBatch emit exception: {e!r}')
 
 
     async def split_and_consume_message(self, message:str) -> None:
