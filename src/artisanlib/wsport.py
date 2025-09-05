@@ -259,8 +259,12 @@ class wsport:
             # fill weight of current roast set: {"pushMessage": "setRoastingProcessFillWeight", "data": { "fillWeight": 12 }}
             elif pushMessage == 'setGreenWeight' and self.data_node in j:
                 data = j[self.data_node]
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport setGreenWeight scheduling apply')
                 def _apply_green() -> None:
                     try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setGreenWeight apply callback entered')
                         v_raw = data.get('value')
                         u_raw = data.get('unit')
                         v = float(v_raw)
@@ -278,15 +282,21 @@ class wsport:
                         if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightinedit'):
                             try:
                                 dlg.updateWeightEdits(dlg.weightinedit, v)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                            except Exception as e:
+                                if self.aw.seriallogflag:
+                                    self.aw.addserial(f'wsport setGreenWeight dialog update exception: {e!r}')
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setGreenWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_green)
             elif pushMessage == 'setRoastedWeight' and self.data_node in j:
                 data = j[self.data_node]
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport setRoastedWeight scheduling apply')
                 def _apply_roasted() -> None:
                     try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastedWeight apply callback entered')
                         v_raw = data.get('value')
                         u_raw = data.get('unit')
                         v = float(v_raw)
@@ -304,15 +314,21 @@ class wsport:
                         if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightoutedit'):
                             try:
                                 dlg.updateWeightEdits(dlg.weightoutedit, v)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                            except Exception as e:
+                                if self.aw.seriallogflag:
+                                    self.aw.addserial(f'wsport setRoastedWeight dialog update exception: {e!r}')
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastedWeight exception: {e!r}')
                 QTimer.singleShot(0, _apply_roasted)
             elif pushMessage == 'setRoastBeans' and self.data_node in j:
                 data = j[self.data_node]
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport setRoastBeans scheduling apply')
                 def _apply_beans() -> None:
                     try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastBeans apply callback entered')
                         beans = data.get('beans')
                         if isinstance(beans, str):
                             self.aw.qmc.beans = beans
@@ -321,15 +337,22 @@ class wsport:
                             if dlg and dlg is not False and hasattr(dlg, 'beansedit') and hasattr(dlg.beansedit, 'setNewPlainText'):
                                 try:
                                     dlg.beansedit.setNewPlainText(beans)
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
+                                except Exception as e:
+                                    if self.aw.seriallogflag:
+                                        self.aw.addserial(f'wsport setRoastBeans dialog update exception: {e!r}')
+
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastBeans exception: {e!r}')
                 QTimer.singleShot(0, _apply_beans)
             elif pushMessage == 'setRoastBatch' and self.data_node in j:
                 data = j[self.data_node]
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport setRoastBatch scheduling apply')
                 def _apply_batch() -> None:
                     try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastBatch apply callback entered')
                         bp = data.get('batch_prefix')
                         bn = data.get('batch_number')
                         b_all = data.get('batch')
@@ -353,10 +376,12 @@ class wsport:
                                 batch_txt = ('' if self.aw.qmc.roastbatchnr == 0 else f"{self.aw.qmc.roastbatchprefix}{self.aw.qmc.roastbatchnr}{roastpos}")
                                 if hasattr(dlg, 'batchedit') and hasattr(dlg.batchedit, 'setText'):
                                     dlg.batchedit.setText(batch_txt)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                            except Exception as e:
+                                if self.aw.seriallogflag:
+                                    self.aw.addserial(f'wsport setRoastBatch dialog update exception: {e!r}')
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastBatch exception: {e!r}')
                 QTimer.singleShot(0, _apply_batch)
 
 
