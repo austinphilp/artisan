@@ -284,45 +284,64 @@ class wsport:
                 data = j[self.data_node] if self.data_node in j and isinstance(j[self.data_node], dict) else {}
                 if self.aw.seriallogflag:
                     self.aw.addserial('wsport resetRoast scheduling OFF->ON')
-                def _apply_reset() -> None:
+                async def _off_on_sequence() -> None:
                     try:
-                        if self.aw.seriallogflag:
-                            self.aw.addserial('wsport resetRoast apply callback entered')
                         sound_on = bool(data.get('soundOn', True))
-                        if sound_on:
-                            try:
-                                self.aw.soundpopSignal.emit()
-                            except Exception:
-                                pass
-                        # Issue OFF (also stops recorder if running)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport resetRoast sequence start')
+                        # OFF
                         try:
-                            self.aw.qmc.OffMonitor()
-                            if self.aw.seriallogflag:
-                                self.aw.addserial('wsport resetRoast OFF issued')
-                        except Exception:
-                            pass
-                        # When shutdown completes (sampling thread stopped), turn ON
-                        def _attempt_on() -> None:
-                            try:
-                                if not self.aw.qmc.flagsamplingthreadrunning and not self.aw.qmc.flagon:
-                                    self.aw.qmc.OnMonitor()
-                                    if self.aw.seriallogflag:
-                                        self.aw.addserial('wsport resetRoast ON applied')
-                                else:
-                                    QTimer.singleShot(50, _attempt_on)
-                            except Exception as e2:
+                            if self.aw.qmc.flagon:
+                                if sound_on:
+                                    try:
+                                        self.aw.soundpopSignal.emit()
+                                    except Exception:
+                                        pass
+                                self.aw.qmc.toggleMonitorSignal.emit()  # queued to UI thread
                                 if self.aw.seriallogflag:
-                                    self.aw.addserial(f'wsport resetRoast _attempt_on exception: {e2!r}')
-                        if not self.aw.qmc.flagon and not self.aw.qmc.flagsamplingthreadrunning:
-                            self.aw.qmc.OnMonitor()
+                                    self.aw.addserial('wsport resetRoast OFF (toggle) emitted')
+                            else:
+                                if self.aw.seriallogflag:
+                                    self.aw.addserial('wsport resetRoast already OFF')
+                        except Exception as e:
                             if self.aw.seriallogflag:
-                                self.aw.addserial('wsport resetRoast ON applied (already OFF)')
-                        else:
-                            QTimer.singleShot(50, _attempt_on)
+                                self.aw.addserial(f'wsport resetRoast OFF exception: {e!r}')
+                        # wait for OFF shutdown
+                        for _ in range(120):  # up to ~6s
+                            if not self.aw.qmc.flagsamplingthreadrunning and not self.aw.qmc.flagon:
+                                break
+                            await asyncio.sleep(0.05)
+                        # ON
+                        try:
+                            self.aw.qmc.onMonitorSignal.emit()  # queued to UI thread
+                            if self.aw.seriallogflag:
+                                self.aw.addserial('wsport resetRoast ON emitted')
+                        except Exception as e:
+                            if self.aw.seriallogflag:
+                                self.aw.addserial(f'wsport resetRoast ON exception: {e!r}')
                     except Exception as e:
                         if self.aw.seriallogflag:
-                            self.aw.addserial(f'wsport resetRoast exception: {e!r}')
-                QTimer.singleShot(0, _apply_reset)
+                            self.aw.addserial(f'wsport resetRoast sequence exception: {e!r}')
+                try:
+                    asyncio.create_task(_off_on_sequence())
+                except Exception as e:
+                    # fallback to UI-thread timer if loop missing
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport resetRoast create_task exception: {e!r}')
+                    def _apply_reset() -> None:
+                        try:
+                            # OFF
+                            try:
+                                if self.aw.qmc.flagon:
+                                    self.aw.qmc.toggleMonitorSignal.emit()
+                            except Exception:
+                                pass
+                            # try ON shortly after; ToggleMonitor will ignore if still shutting down
+                            QTimer.singleShot(200, self.aw.qmc.onMonitorSignal.emit)
+                        except Exception as e2:
+                            if self.aw.seriallogflag:
+                                self.aw.addserial(f'wsport resetRoast timer fallback exception: {e2!r}')
+                    QTimer.singleShot(0, _apply_reset)
             elif pushMessage == 'setGreenWeight' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
