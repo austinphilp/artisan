@@ -23,6 +23,7 @@ import asyncio
 import websockets
 import contextlib
 import socket
+import re
 
 from contextlib import suppress
 from threading import Thread
@@ -37,6 +38,12 @@ try:
 except ImportError:
     from PyQt5.QtWidgets import QApplication # type: ignore # @UnusedImport @Reimport  @UnresolvedImport
 
+try:
+    from PyQt6.QtCore import QTimer
+except ImportError:
+    from PyQt5.QtCore import QTimer  # type: ignore
+
+from artisanlib.util import convertWeight, weight_units
 from artisanlib import __version__
 
 _log: Final[logging.Logger] = logging.getLogger(__name__)
@@ -115,6 +122,15 @@ class wsport:
         self.open_event:Optional[asyncio.Event] = None # an event set on connecting
         self.pending_events:Dict[int, Union[asyncio.Event, Dict[str,Any]]] = {} # message ids associated with pending asyncio.Event object or result
 
+
+    def _weight_unit_index(self, unit: Optional[str]) -> Optional[int]:
+        if unit is None:
+            return None
+        u = str(unit).strip().lower()
+        try:
+            return [w.lower() for w in weight_units].index(u)
+        except Exception:
+            return None
 
     # request event handling
 
@@ -234,6 +250,64 @@ class wsport:
             # name of current roast set: {"pushMessage": "setRoastingProcessName", "data": { "name": "Test roast 123" }}
             # note of current roast set: {"pushMessage": "setRoastingProcessNote", "data": { "note": "A test comment" }}
             # fill weight of current roast set: {"pushMessage": "setRoastingProcessFillWeight", "data": { "fillWeight": 12 }}
+            elif pushMessage == 'setGreenWeight' and self.data_node in j:
+                data = j[self.data_node]
+                def _apply_green() -> None:
+                    try:
+                        v = float(data.get('value'))
+                        in_unit_idx = self._weight_unit_index(data.get('unit'))
+                        current_unit_idx = [w.lower() for w in weight_units].index(self.aw.qmc.weight[2].lower())
+                        if in_unit_idx is not None:
+                            v = convertWeight(v, in_unit_idx, current_unit_idx)
+                        self.aw.qmc.weight = (v, self.aw.qmc.weight[1], self.aw.qmc.weight[2])
+                    except Exception:
+                        pass
+                QTimer.singleShot(0, _apply_green)
+            elif pushMessage == 'setRoastedWeight' and self.data_node in j:
+                data = j[self.data_node]
+                def _apply_roasted() -> None:
+                    try:
+                        v = float(data.get('value'))
+                        in_unit_idx = self._weight_unit_index(data.get('unit'))
+                        current_unit_idx = [w.lower() for w in weight_units].index(self.aw.qmc.weight[2].lower())
+                        if in_unit_idx is not None:
+                            v = convertWeight(v, in_unit_idx, current_unit_idx)
+                        self.aw.qmc.weight = (self.aw.qmc.weight[0], v, self.aw.qmc.weight[2])
+                    except Exception:
+                        pass
+                QTimer.singleShot(0, _apply_roasted)
+            elif pushMessage == 'setRoastBeans' and self.data_node in j:
+                data = j[self.data_node]
+                def _apply_beans() -> None:
+                    try:
+                        beans = data.get('beans')
+                        if isinstance(beans, str):
+                            self.aw.qmc.beans = beans
+                    except Exception:
+                        pass
+                QTimer.singleShot(0, _apply_beans)
+            elif pushMessage == 'setRoastBatch' and self.data_node in j:
+                data = j[self.data_node]
+                def _apply_batch() -> None:
+                    try:
+                        bp = data.get('batch_prefix')
+                        bn = data.get('batch_number')
+                        b_all = data.get('batch')
+                        if (bn is None or bp is None) and isinstance(b_all, str):
+                            m = re.match(r'^([^0-9]*)([0-9]+)$', b_all.strip())
+                            if m:
+                                bp = m.group(1)
+                                bn = int(m.group(2))
+                        if isinstance(bp, str):
+                            self.aw.qmc.roastbatchprefix = bp
+                        if isinstance(bn, (int, float, str)):
+                            try:
+                                self.aw.qmc.roastbatchnr = int(bn)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                QTimer.singleShot(0, _apply_batch)
 
 
     async def split_and_consume_message(self, message:str) -> None:

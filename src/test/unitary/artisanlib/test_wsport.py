@@ -19,6 +19,7 @@ from unittest.mock import Mock
 import pytest
 
 from artisanlib.wsport import wsport
+from artisanlib import wsport as ws_mod
 
 
 @pytest.fixture
@@ -375,3 +376,50 @@ class TestWSPortMessageHandling:
         # Act & Assert - Should raise JSONDecodeError
         with pytest.raises(json.JSONDecodeError):
             await wsport_instance.consumer(invalid_message)
+
+    @pytest.mark.asyncio
+    async def test_consumer_set_green_weight(self, wsport_instance: wsport, monkeypatch) -> None:
+        # Make QTimer fire immediately
+        monkeypatch.setattr(ws_mod.QTimer, 'singleShot', lambda _ms, func: func())
+        wsport_instance.aw.qmc.weight = (0.0, 0.0, 'g')
+        msg = json.dumps({
+            'pushMessage': 'setGreenWeight',
+            'data': {'value': 1200, 'unit': 'g'}
+        })
+        await wsport_instance.consumer(msg)
+        assert wsport_instance.aw.qmc.weight[0] == 1200
+
+    @pytest.mark.asyncio
+    async def test_consumer_set_roasted_weight_with_unit_conversion(self, wsport_instance: wsport, monkeypatch) -> None:
+        monkeypatch.setattr(ws_mod.QTimer, 'singleShot', lambda _ms, func: func())
+        wsport_instance.aw.qmc.weight = (0.0, 0.0, 'g')
+        msg = json.dumps({
+            'pushMessage': 'setRoastedWeight',
+            'data': {'value': 1.5, 'unit': 'kg'}
+        })
+        await wsport_instance.consumer(msg)
+        assert abs(wsport_instance.aw.qmc.weight[1] - 1500.0) < 1e-6
+
+    @pytest.mark.asyncio
+    async def test_consumer_set_roast_beans(self, wsport_instance: wsport, monkeypatch) -> None:
+        monkeypatch.setattr(ws_mod.QTimer, 'singleShot', lambda _ms, func: func())
+        wsport_instance.aw.qmc.beans = ''
+        msg = json.dumps({
+            'pushMessage': 'setRoastBeans',
+            'data': {'beans': 'Kenya AB'}
+        })
+        await wsport_instance.consumer(msg)
+        assert wsport_instance.aw.qmc.beans == 'Kenya AB'
+
+    @pytest.mark.asyncio
+    async def test_consumer_set_roast_batch_combined(self, wsport_instance: wsport, monkeypatch) -> None:
+        monkeypatch.setattr(ws_mod.QTimer, 'singleShot', lambda _ms, func: func())
+        wsport_instance.aw.qmc.roastbatchprefix = ''
+        wsport_instance.aw.qmc.roastbatchnr = 0
+        msg = json.dumps({
+            'pushMessage': 'setRoastBatch',
+            'data': {'batch': 'B123'}
+        })
+        await wsport_instance.consumer(msg)
+        assert wsport_instance.aw.qmc.roastbatchprefix == 'B'
+        assert wsport_instance.aw.qmc.roastbatchnr == 123
