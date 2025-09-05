@@ -283,15 +283,42 @@ class wsport:
             elif pushMessage == 'resetRoast':
                 data = j[self.data_node] if self.data_node in j and isinstance(j[self.data_node], dict) else {}
                 if self.aw.seriallogflag:
-                    self.aw.addserial('wsport resetRoast scheduling apply')
+                    self.aw.addserial('wsport resetRoast scheduling OFF->ON')
                 def _apply_reset() -> None:
                     try:
                         if self.aw.seriallogflag:
                             self.aw.addserial('wsport resetRoast apply callback entered')
                         sound_on = bool(data.get('soundOn', True))
-                        self.aw.qmc.reset(redraw=True, soundOn=sound_on, fireResetAction=True, onMonitor=False)
-                        if self.aw.seriallogflag:
-                            self.aw.addserial('wsport resetRoast applied')
+                        if sound_on:
+                            try:
+                                self.aw.soundpopSignal.emit()
+                            except Exception:
+                                pass
+                        # Issue OFF (also stops recorder if running)
+                        try:
+                            self.aw.qmc.OffMonitor()
+                            if self.aw.seriallogflag:
+                                self.aw.addserial('wsport resetRoast OFF issued')
+                        except Exception:
+                            pass
+                        # When shutdown completes (sampling thread stopped), turn ON
+                        def _attempt_on() -> None:
+                            try:
+                                if not self.aw.qmc.flagsamplingthreadrunning and not self.aw.qmc.flagon:
+                                    self.aw.qmc.OnMonitor()
+                                    if self.aw.seriallogflag:
+                                        self.aw.addserial('wsport resetRoast ON applied')
+                                else:
+                                    QTimer.singleShot(50, _attempt_on)
+                            except Exception as e2:
+                                if self.aw.seriallogflag:
+                                    self.aw.addserial(f'wsport resetRoast _attempt_on exception: {e2!r}')
+                        if not self.aw.qmc.flagon and not self.aw.qmc.flagsamplingthreadrunning:
+                            self.aw.qmc.OnMonitor()
+                            if self.aw.seriallogflag:
+                                self.aw.addserial('wsport resetRoast ON applied (already OFF)')
+                        else:
+                            QTimer.singleShot(50, _attempt_on)
                     except Exception as e:
                         if self.aw.seriallogflag:
                             self.aw.addserial(f'wsport resetRoast exception: {e!r}')
