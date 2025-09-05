@@ -419,6 +419,37 @@ class wsport:
                 except Exception as e:
                     if self.aw.seriallogflag:
                         self.aw.addserial(f'wsport setRoastBeans emit exception: {e!r}')
+            elif pushMessage in ('setRoastTitle', 'setRoastingProcessName') and self.data_node in j:
+                data = j[self.data_node]
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport setRoastTitle scheduling apply')
+                def _apply_title() -> None:
+                    try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport setRoastTitle apply callback entered')
+                        t = data.get('title')
+                        if not isinstance(t, str):
+                            t = data.get('name')
+                        if isinstance(t, str):
+                            self.aw.qmc.title = t
+                            # Update Roast Properties dialog if open
+                            dlg = getattr(self.aw, 'editgraphdialog', None)
+                            if dlg and dlg is not False and hasattr(dlg, 'titleedit'):
+                                try:
+                                    if hasattr(dlg.titleedit, 'setEditText'):
+                                        dlg.titleedit.setEditText(t)
+                                    elif hasattr(dlg.titleedit, 'setCurrentText'):
+                                        dlg.titleedit.setCurrentText(t)
+                                except Exception:
+                                    pass
+                            # Update canvas/window title via signal
+                            self.aw.setTitleSignal.emit(self.aw.qmc.title, True)
+                            if self.aw.seriallogflag:
+                                self.aw.addserial(f'wsport setRoastTitle applied: {t!r}')
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastTitle exception: {e!r}')
+                QTimer.singleShot(0, _apply_title)
             elif pushMessage == 'setRoastBatch' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
