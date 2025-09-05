@@ -280,6 +280,22 @@ class wsport:
             # name of current roast set: {"pushMessage": "setRoastingProcessName", "data": { "name": "Test roast 123" }}
             # note of current roast set: {"pushMessage": "setRoastingProcessNote", "data": { "note": "A test comment" }}
             # fill weight of current roast set: {"pushMessage": "setRoastingProcessFillWeight", "data": { "fillWeight": 12 }}
+            elif pushMessage == 'resetRoast':
+                data = j[self.data_node] if self.data_node in j and isinstance(j[self.data_node], dict) else {}
+                if self.aw.seriallogflag:
+                    self.aw.addserial('wsport resetRoast scheduling apply')
+                def _apply_reset() -> None:
+                    try:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport resetRoast apply callback entered')
+                        sound_on = bool(data.get('soundOn', True))
+                        self.aw.qmc.reset(redraw=True, soundOn=sound_on, fireResetAction=True, onMonitor=False)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial('wsport resetRoast applied')
+                    except Exception as e:
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport resetRoast exception: {e!r}')
+                QTimer.singleShot(0, _apply_reset)
             elif pushMessage == 'setGreenWeight' and self.data_node in j:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
