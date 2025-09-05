@@ -469,16 +469,29 @@ class wsport:
                 data = j[self.data_node]
                 if self.aw.seriallogflag:
                     self.aw.addserial('wsport setRoastTitle scheduling apply')
+                # Extract title or name
+                t = data.get('title')
+                if not isinstance(t, str):
+                    t = data.get('name')
+                # Best-effort immediate updates (thread-safe via queued signal for canvas)
+                try:
+                    if isinstance(t, str):
+                        # Keep raw roast title property up to date
+                        self.aw.qmc.title = t
+                        # Update canvas/window via queued signal regardless of QTimer
+                        self.aw.setTitleSignal.emit(self.aw.qmc.title, True)
+                        if self.aw.seriallogflag:
+                            self.aw.addserial(f'wsport setRoastTitle signal emitted: {t!r}')
+                except Exception as e:
+                    if self.aw.seriallogflag:
+                        self.aw.addserial(f'wsport setRoastTitle emit exception: {e!r}')
+                # Also schedule UI-thread task to refresh dialogs safely
                 def _apply_title() -> None:
                     try:
                         if self.aw.seriallogflag:
                             self.aw.addserial('wsport setRoastTitle apply callback entered')
-                        t = data.get('title')
-                        if not isinstance(t, str):
-                            t = data.get('name')
                         if isinstance(t, str):
-                            self.aw.qmc.title = t
-                            # Update Roast Properties dialog if open
+                            # Ensure roast properties dialog reflects the new title
                             dlg = getattr(self.aw, 'editgraphdialog', None)
                             if dlg and dlg is not False and hasattr(dlg, 'titleedit'):
                                 try:
@@ -488,8 +501,6 @@ class wsport:
                                         dlg.titleedit.setCurrentText(t)
                                 except Exception:
                                     pass
-                            # Update canvas/window title via signal
-                            self.aw.setTitleSignal.emit(self.aw.qmc.title, True)
                             if self.aw.seriallogflag:
                                 self.aw.addserial(f'wsport setRoastTitle applied: {t!r}')
                     except Exception as e:
