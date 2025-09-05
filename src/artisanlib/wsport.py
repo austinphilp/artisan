@@ -260,6 +260,13 @@ class wsport:
                         if in_unit_idx is not None:
                             v = convertWeight(v, in_unit_idx, current_unit_idx)
                         self.aw.qmc.weight = (v, self.aw.qmc.weight[1], self.aw.qmc.weight[2])
+                        # Update Roast Properties dialog if open
+                        dlg = getattr(self.aw, 'editgraphdialog', None)
+                        if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightinedit'):
+                            try:
+                                dlg.updateWeightEdits(dlg.weightinedit, v)
+                            except Exception:
+                                pass
                     except Exception:
                         pass
                 QTimer.singleShot(0, _apply_green)
@@ -273,6 +280,13 @@ class wsport:
                         if in_unit_idx is not None:
                             v = convertWeight(v, in_unit_idx, current_unit_idx)
                         self.aw.qmc.weight = (self.aw.qmc.weight[0], v, self.aw.qmc.weight[2])
+                        # Update Roast Properties dialog if open
+                        dlg = getattr(self.aw, 'editgraphdialog', None)
+                        if dlg and dlg is not False and hasattr(dlg, 'updateWeightEdits') and hasattr(dlg, 'weightoutedit'):
+                            try:
+                                dlg.updateWeightEdits(dlg.weightoutedit, v)
+                            except Exception:
+                                pass
                     except Exception:
                         pass
                 QTimer.singleShot(0, _apply_roasted)
@@ -283,6 +297,13 @@ class wsport:
                         beans = data.get('beans')
                         if isinstance(beans, str):
                             self.aw.qmc.beans = beans
+                            # Update Roast Properties dialog if open
+                            dlg = getattr(self.aw, 'editgraphdialog', None)
+                            if dlg and dlg is not False and hasattr(dlg, 'beansedit') and hasattr(dlg.beansedit, 'setNewPlainText'):
+                                try:
+                                    dlg.beansedit.setNewPlainText(beans)
+                                except Exception:
+                                    pass
                     except Exception:
                         pass
                 QTimer.singleShot(0, _apply_beans)
@@ -303,6 +324,16 @@ class wsport:
                         if isinstance(bn, (int, float, str)):
                             try:
                                 self.aw.qmc.roastbatchnr = int(bn)
+                            except Exception:
+                                pass
+                        # Update Roast Properties dialog if open
+                        dlg = getattr(self.aw, 'editgraphdialog', None)
+                        if dlg and dlg is not False:
+                            try:
+                                roastpos = (f' ({self.aw.qmc.roastbatchpos})' if self.aw.qmc.roastbatchnr != 0 else '')
+                                batch_txt = ('' if self.aw.qmc.roastbatchnr == 0 else f"{self.aw.qmc.roastbatchprefix}{self.aw.qmc.roastbatchnr}{roastpos}")
+                                if hasattr(dlg, 'batchedit') and hasattr(dlg.batchedit, 'setText'):
+                                    dlg.batchedit.setText(batch_txt)
                             except Exception:
                                 pass
                     except Exception:
